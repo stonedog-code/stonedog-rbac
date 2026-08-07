@@ -2,11 +2,10 @@
 
 A shared authorisation model: **capabilities, checked against a scope**.
 
-> **Status: design only.** This repository currently holds the product
-> requirements and no implementation. The model is the expensive decision — it is
-> very hard to change once applications have adopted it — so it is being agreed
-> before any code is written. See
-> [`docs/prd/authorisation-model.md`](./docs/prd/authorisation-model.md).
+The model was agreed before any code was written, because it is very hard to
+change once applications have adopted it. See
+[`docs/prd/authorisation-model.md`](./docs/prd/authorisation-model.md) for the
+reasoning and for the three decisions that shaped it.
 
 ## The shape
 
@@ -43,7 +42,69 @@ that owns them. This package ships the evaluator and the types; each host
 supplies its own role → capability mapping from wherever its roles already live.
 
 **No authentication, no policy language, no row-level filtering.** See the
-non-goals in the PRD.
+non-goals in the PRD. Authentication is
+[`@stonedogcode/auth`](https://github.com/stonedog-code/stonedog-auth), and it
+is a separate package for the same reason this one has no role catalogue.
+
+**No negation.** Grant-only, deliberately. Negation makes the answer depend on
+the order grants were applied and makes "why was this denied" unanswerable
+without a trace. The cases that look like denial — a suspended account, a
+read-only member — are better modelled as a smaller capability set. It can be
+added later; it cannot be removed later.
+
+## Usage
+
+```ts
+import { can, subjectFromRoles } from "stonedog-rbac";
+
+const roleMap = {
+  Viewer: ["article:read"],
+  Editor: ["article:read", "article:write"],
+  "Artwork Admin": ["artwork:manage"],   // lateral, not higher
+};
+
+const subject = subjectFromRoles(
+  [{ role: "Editor", scope: orgId }, { role: "Artwork Admin" }],
+  roleMap,
+);
+
+can(subject, "article:write", orgId);      // true
+can(subject, "article:write", otherOrgId); // false — a grant does not travel
+can(subject, "article:write");             // false — nor does it become global
+```
+
+### Scope hierarchy
+
+Scope is **opaque**: the package compares scopes and does nothing else with
+them. If yours nest, supply a resolver that answers *what contains this*:
+
+```ts
+can(subject, "article:read", teamId, {
+  resolveContainingScopes: (scope) => parentsOf(scope),
+});
+```
+
+**The direction is load-bearing.** A resolver that returns a scope's *children*
+inverts every check — a grant on one team would satisfy a check on its
+organisation, and so on every other team in it. Nothing throws and nothing looks
+wrong. The type is named `containingScopes` for that reason, and the walk's
+direction is pinned by a test against a deliberately inverted resolver.
+
+A cyclic hierarchy is a host bug; the walk is depth-bounded and **denies** rather
+than hanging. An authorisation check is the wrong place to turn a configuration
+mistake into an outage.
+
+### The ladder adapter
+
+`ladderRoleMap` turns an ordered tier list into a role map, so an application
+with a numeric ladder can adopt this without rewriting every call site at once.
+
+**It ships deprecated.** It exists to make migration incremental and for no
+other reason, and it is removed in the first major release after the last
+ladder-shaped call site is gone. Treat every call site it supports as work
+remaining rather than work done — a ladder cannot express a lateral role or a
+scoped one, which is what sends those call sites back to comparing role names
+as strings.
 
 ## What it must never become
 
