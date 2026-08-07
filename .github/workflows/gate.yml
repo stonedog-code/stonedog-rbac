@@ -58,34 +58,9 @@ jobs:
       # so `files`, the `exports` map and the tarball contents are what a
       # consumer actually receives — and they break at publish time, after
       # review, on a version number that can never be reused.
-      - name: The tarball is what a consumer gets
-        run: |
-          set -euo pipefail
-          npm pack --silent >/dev/null
-          tarball=$(ls stonedog-rbac-*.tgz)
-          contents=$(tar -tzf "$tarball")
-
-          echo "$contents" | grep -q 'package/src/index.ts'
-          echo "$contents" | grep -q 'package/src/can.ts'
-          echo "$contents" | grep -q 'package/src/roles.ts'
-          echo "$contents" | grep -q 'package/LICENSE'
-          echo "$contents" | grep -q 'package/NOTICE'
-
-          # Tests must NOT ship. They import jest globals, so a consumer
-          # compiling our source under their own config would fail on them.
-          if echo "$contents" | grep -q '__tests__'; then
-            echo "tarball contains tests" >&2
-            exit 1
-          fi
-
-      # A secret must never reach a log, and an auth library is the worst place
-      # for a debug-time string to survive. Scan the shipped source for the
-      # shapes that would do it.
-      - name: No logging in shipped source
-        run: |
-          set -euo pipefail
-          if grep -rnE 'console\.(log|info|warn|error|debug)' src --include='*.ts' \
-               | grep -v '__tests__'; then
-            echo "shipped source writes to the console" >&2
-            exit 1
-          fi
+      #
+      # This packs it, installs the tarball into a throwaway project, and
+      # type-checks and RUNS it as a consumer would. Stronger than inspecting
+      # the tar listing, which cannot tell whether the code works once resolved
+      # through the exports map.
+      - run: npm run verify:package
