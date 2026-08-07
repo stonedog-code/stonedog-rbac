@@ -1,4 +1,4 @@
-# stonedog-rbac
+# @stonedogcode/rbac
 
 A shared authorisation model: **capabilities, checked against a scope**.
 
@@ -55,7 +55,7 @@ added later; it cannot be removed later.
 ## Usage
 
 ```ts
-import { can, subjectFromRoles } from "stonedog-rbac";
+import { can, subjectFromRoles } from "@stonedogcode/rbac";
 
 const roleMap = {
   Viewer: ["article:read"],

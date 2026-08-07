@@ -2,7 +2,7 @@
 # Copyright (C) 2026 StoneDogCode L.L.C.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Publish stonedog-rbac to npm, end to end.
+# Publish @stonedogcode/rbac to npm, end to end.
 #
 #   npm run publish:stonedog-rbac
 #
@@ -20,12 +20,16 @@
 #
 # ## The traps specific to THIS package
 #
-# 1. **The name is UNSCOPED.** `stonedog-rbac`, not `@stonedogcode/rbac`,
-#    matching stonedog-style and stonedog-theme. An unscoped name is
-#    first-come-first-served across the whole registry, so the first publish is
-#    also the claim — and if someone else has taken it, npm says 404 rather than
-#    "taken", which reads as a missing package while auth is perfectly fine.
-#    Checked explicitly below.
+# 1. **The name is SCOPED.** `@stonedogcode/rbac`. It was first published
+#    unscoped as `stonedog-rbac@0.1.0` on 2026-08-07, matching stonedog-style
+#    and stonedog-theme; the decision was settled the other way the same day
+#    (NEH-482) and all five shared packages now scope. `stonedog-rbac@0.1.0`
+#    stays on the registry, deprecated, pointing here — it is not unpublished,
+#    because unpublishing breaks anyone who already resolved it.
+#
+#    A scoped package defaults to **restricted**, so `publishConfig.access`
+#    must stay `"public"`. A private publish reports success and then 404s for
+#    every consumer, which reads as a missing package. Gated below.
 #
 # 2. **Zero runtime dependencies is a claim the README makes.** This is set
 #    membership and a bounded graph walk; anything it imported would be
@@ -41,7 +45,7 @@
 #    and consumers compile our source under their own config.
 set -euo pipefail
 
-PACKAGE_NAME="stonedog-rbac"
+PACKAGE_NAME="@stonedogcode/rbac"
 # Sanity floor. Comfortably under the real count (8) so ordinary growth does not
 # trip it, above what a `files`-misconfigured package would produce (3:
 # package.json, README, LICENSE). The margin is thinner than sibling packages'
