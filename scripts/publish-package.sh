@@ -96,11 +96,11 @@ echo "  authenticated as $NPM_USER"
 
 if npm view "$PACKAGE_NAME" version >/dev/null 2>&1; then
   npm owner ls "$PACKAGE_NAME" 2>/dev/null | grep -q "^$NPM_USER " \
-    || fail "'$NPM_USER' is not an owner of $PACKAGE_NAME. This is an UNSCOPED name, so it may belong to a stranger — check https://www.npmjs.com/package/$PACKAGE_NAME before assuming this is an auth problem. Publishing would fail with a misleading 404 either way."
+    || fail "'$NPM_USER' is not an owner of $PACKAGE_NAME. The name is SCOPED, so this is about the @stonedogcode scope rather than the package: publishing into a scope you do not belong to fails with a 404, not a 403, because npm will not leak whether a scope exists. Check 'npm org ls stonedogcode' before assuming the package is missing."
   echo "  $NPM_USER is an owner of $PACKAGE_NAME"
 else
-  echo "  $PACKAGE_NAME does not exist on the registry — this first publish CLAIMS the name"
-  echo "  (unscoped names are first-come-first-served; there is no reservation)"
+  echo "  $PACKAGE_NAME does not exist on the registry — this first publish creates it"
+  echo "  (scoped, so the name is reserved by the @stonedogcode scope, not first-come-first-served)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -133,14 +133,34 @@ node -e '
     console.error(`REFUSING: license is "${pkg.license}", expected Apache-2.0.`);
     process.exit(1);
   }
-  if (pkg.name.startsWith("@")) {
-    console.error(`REFUSING: name is "${pkg.name}". This package is deliberately UNSCOPED, matching`);
-    console.error("  stonedog-style and stonedog-theme. Changing it after a publish means DEPRECATING");
-    console.error("  the old name, not renaming it — a published name can never be reclaimed.");
+  // Asserted POSITIVELY — the name must BE `@stonedogcode/rbac`, not merely
+  // "not something else". The previous version of this check forbade a scope,
+  // encoding the original decision to stay unscoped; when that decision was
+  // reversed (NEH-482) the check was left behind and refused the very publish
+  // it was updated for. A guard that only forbids the old mistake cannot catch
+  // the new one, and this one is worth catching in both directions: an
+  // accidental un-scoping would claim a second name for the same package.
+  if (pkg.name !== "@stonedogcode/rbac") {
+    console.error(`REFUSING: name is "${pkg.name}", expected "@stonedogcode/rbac".`);
+    console.error("  All five shared packages scope under @stonedogcode (NEH-482). The unscoped");
+    console.error("  stonedog-rbac@0.1.0 stays on the registry, deprecated, pointing here — changing");
+    console.error("  a name after a publish means DEPRECATING the old one, never reclaiming it.");
+    process.exit(1);
+  }
+
+  // A scoped package defaults to access: restricted. Publishing one privately
+  // succeeds, prints nothing unusual, and then 404s for every consumer — which
+  // reads as a package that was never published. `npm publish --access public`
+  // below is the other half of this; both, because the cost of being wrong is
+  // a version number that can never be reused.
+  if (pkg.publishConfig?.access !== "public") {
+    console.error(`REFUSING: publishConfig.access is "${pkg.publishConfig?.access}", expected "public".`);
+    console.error("  A SCOPED package defaults to restricted, and a private publish looks like a");
+    console.error("  success until a consumer gets a 404.");
     process.exit(1);
   }
 '
-echo "  zero dependencies; Apache-2.0; unscoped name unchanged"
+echo "  zero dependencies; Apache-2.0; scoped name and public access confirmed"
 
 # ---------------------------------------------------------------------------
 # 5. The gate, then the package check.
