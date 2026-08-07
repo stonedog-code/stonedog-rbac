@@ -1,5 +1,5 @@
 /**
- * stonedog-rbac — capabilities, checked against a scope.
+ * @stonedogcode/rbac — capabilities, checked against a scope.
  *
  * ```ts
  * can(subject, "article:read", { organisation: orgId });

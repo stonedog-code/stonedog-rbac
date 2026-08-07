@@ -68,7 +68,7 @@ import {
   type RoleMap,
   type ScopeResolver,
   type Subject,
-} from "stonedog-rbac";
+} from "@stonedogcode/rbac";
 
 const roleMap: RoleMap = {
   Viewer: ["article:read"],

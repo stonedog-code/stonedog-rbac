@@ -1,5 +1,5 @@
 {
-  "name": "stonedog-rbac",
+  "name": "@stonedogcode/rbac",
   "version": "0.1.0",
   "description": "A shared authorisation model: capabilities, checked against a scope. No role catalogue, no ordering, no framework.",
   "license": "Apache-2.0",
@@ -34,7 +34,7 @@
     "verify:package": "bash scripts/verify-package.sh",
     "publish:stonedog-rbac": "bash scripts/publish-package.sh"
   },
-  "//publish:stonedog-rbac": "Run from a terminal, interactively — npm prompts for the 2FA one-time password and the login flow needs a browser. It refuses a checkout that is detached, dirty, or behind origin/main; refuses a version already published; refuses a tarball missing the entry point, the NOTICE, or containing tests; refuses any runtime dependency at all; and refuses a public export having silently disappeared. Then it proves the result by installing from the registry into a temp directory and asserting node_modules holds exactly one package. NOTE the name is UNSCOPED and first-come-first-served — the first publish claims it, and npm reports a name taken by a stranger as a 404 rather than as taken.",
+  "//publish:stonedog-rbac": "Run from a terminal, interactively — npm prompts for the 2FA one-time password and the login flow needs a browser. It refuses a checkout that is detached, dirty, or behind origin/main; refuses a version already published; refuses a tarball missing the entry point, the NOTICE, or containing tests; refuses any runtime dependency at all; and refuses a public export having silently disappeared. Then it proves the result by installing from the registry into a temp directory and asserting node_modules holds exactly one package. NOTE the name is SCOPED, so publishConfig.access must stay \"public\" — a scoped package defaults to RESTRICTED and a private publish looks like a success until a consumer gets a 404. The unscoped stonedog-rbac@0.1.0 is deprecated and points here.",
   "//dependencies": "There are none, and there should never be any. This is an evaluator: a few dozen lines of set membership and a bounded graph walk. Anything it imported would be inherited by every consumer on an authorisation path.",
   "devDependencies": {
     "@eslint/js": "^9.39.5",
