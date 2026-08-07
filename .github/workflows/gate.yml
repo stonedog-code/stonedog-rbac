@@ -44,9 +44,15 @@ jobs:
       # 0. Both read as "clean".
       - name: Prove the gate was not vacuous
         run: |
+          set -euo pipefail
           linted=$(npx eslint . -f json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).length))')
-          echo "eslint examined $linted files"
-          test "$linted" -ge 10
+          sources=$(find src -name '*.ts' | wc -l)
+          echo "eslint examined $linted files; src holds $sources"
+          # Derived from the tree rather than a hard-coded floor. A copied
+          # magic number is itself a way for this check to stop meaning
+          # anything — it failed on this repo's first run for exactly that
+          # reason, having been carried over from a larger package.
+          test "$linted" -ge "$sources"
 
       # The one thing every check above is blind to: this package ships source,
       # so `files`, the `exports` map and the tarball contents are what a
