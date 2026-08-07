@@ -148,6 +148,9 @@ wrong review to touch it in.
    design, no legacy call sites, and no enforcement today — so adoption closes a
    real gap rather than merely relocating working code, and it is the honest test
    of whether the scope model holds.
+   **A greenfield internal tool adopts alongside it**, for the same reason and
+   more cheaply: it has no call sites at all, so if the scope resolver is awkward
+   to implement there, it is awkward, and nothing else is confounding the answer.
 4. **The smallest ladder next**, as the cheapest proof that incremental migration
    works.
 5. **The largest last**, keeping its existing permissions module as a thin shim
@@ -162,13 +165,64 @@ documentation package already consuming one works exactly this way, and it must
 keep working without this package ever being installed. If this becomes a soft
 prerequisite, the interface has been drawn wrong.
 
-## Open questions
+## Decisions
 
-- Whether scope should be an opaque host-supplied key or a structured value the
-  package understands well enough to express hierarchy (an organisation
-  containing sites containing teams).
-- Whether capability sets should support negation, or whether "grant only" with
-  smaller roles is sufficient. Negation is easy to add and very hard to reason
-  about once present.
-- Whether the ladder adapter should be permanent or explicitly deprecated on a
-  timetable, so it does not become the way everyone keeps writing checks.
+These three were deliberately left open when this document was first written,
+because each is expensive to change once applications have adopted the model.
+All three are now settled.
+
+### Scope is an opaque key, with an optional host-supplied resolver
+
+Scope is a value the package **compares and nothing else**. It does not know
+that an organisation contains sites, or that a site contains teams.
+
+Hierarchy is reached through a resolver the host may supply: given a scope,
+return the scopes that contain it. A check against a site can then be satisfied
+by a grant at the organisation, and the package walks whatever it is handed
+without ever inventing the relation.
+
+*Why not a structured scope.* A structured value means the package owns the
+containment rules, and the three applications do not agree on them — one nests
+sites under organisations, one has organisations that do not nest at all, and
+one has a single global scope. Encoding any of those makes the other two express
+their model as a lie. It is also the hardest thing here to change later, which
+is the argument for giving it the smallest possible surface.
+
+*The trap, which the implementation must test for.* A resolver that returns a
+**descendant** instead of an ancestor inverts the check and grants downward —
+silently, and in the most dangerous direction. The direction is stated in the
+type's name (`containingScopes`, never `relatedScopes`) and asserted directly.
+
+### No negation in v1
+
+No `deny` capabilities. Grant-only.
+
+Negation is cheap to add and expensive to live with: it makes the answer depend
+on the *order* grants were applied, it makes "why was this denied" unanswerable
+without a trace, and every subsequent feature has to define how it interacts
+with denial. None of the three applications needs it — the cases that look like
+denial (a suspended account, a read-only member) are better modelled as holding
+a smaller capability set, which is also easier to read at the point of grant.
+
+It can be added later without breaking anyone. It cannot be removed later. If a
+real case arrives that a smaller set genuinely cannot express, bring the case
+rather than the feature.
+
+### The ladder adapter ships already deprecated
+
+It carries a `@deprecated` tag naming its replacement from its first release,
+and its own section in the README explaining that it exists to make migration
+incremental and for no other reason.
+
+An adapter with no stated end becomes the way everyone keeps writing checks —
+at which point the ladder has been *extracted* rather than retired, which is the
+outcome this whole document argues against. Both existing implementations
+already reach past their ladder wherever the real authorisation question is
+asked; the adapter exists to carry the call sites that have not yet been
+rewritten, not to bless the shape.
+
+**No calendar date.** A deadline nobody owns slips, and then gets deleted. The
+end condition is a state instead: the adapter is removed in the first major
+release after the last `hasRole`-shaped call site is gone. That makes its
+removal a consequence of the migration finishing rather than a separate
+negotiation with whoever is busiest that quarter.
