@@ -26,9 +26,15 @@ export {
   type SubjectFromRolesOptions,
 } from "./roles";
 
+export {
+  INTERNAL_CAPABILITY_PREFIX,
+  isInternalCapability,
+} from "./types";
+
 export type {
   CanOptions,
   Capability,
+  Principal,
   Grant,
   Scope,
   ScopeArgument,

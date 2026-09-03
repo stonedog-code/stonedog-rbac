@@ -35,6 +35,48 @@ role ladder cannot provide:
 - **Rename resistance.** Renaming, splitting, or adding a role changes one
   mapping rather than every call site that named it.
 
+## Operator-only capabilities
+
+Every product here has a **top-level admin role that is internal staff** —
+hopperguard's `System Admin`, rozcards' `ADMIN` — and **lesser admin roles that
+customers legitimately hold**: a brand admin, a facility admin, an organisation
+admin. Both are called "admin". That is why the mistake is easy, and why the
+distinction has to be declared rather than guessed from a name or a rank.
+
+The distinction is **audience, not level**. An internal operator is not "a
+customer plus one" — a customer admin can hold capabilities no operator has.
+Expressing it as a rank is exactly what this package exists to avoid.
+
+```ts
+const subject = subjectFromRoles(assignments, roleMap, {
+  internalRoles: ["System Admin"],          // declared, never inferred
+});
+
+can(subject, "internal:secrets:read");      // operator only
+can(subject, "article:read");               // unchanged for everyone
+```
+
+**Two facts must hold** for an `internal:`-prefixed capability: the subject is
+an operator **and** the capability was granted. Neither is sufficient alone, so
+`principal` is not a super-admin flag and a mistaken role map cannot expose an
+operator surface.
+
+**The prefix is reserved rather than configured, and that is the point.** The
+failure to defend against is a role map granting an operator capability to a
+customer-facing role — so the evaluator must learn "operator-only" from
+somewhere that mistaken map cannot reach. A per-call option is forgettable and
+forgetting it *grants*; a boot-time registry can be left unconfigured, which
+also fails open. A prefix travels in the capability name and cannot be
+forgotten.
+
+This is still grant-only. Rule 0 is a property of the **capability**, not of a
+grant, so no ordering changes the answer; "why was this denied" stays
+answerable in one sentence; and it can only ever deny.
+
+**Absent `principal` means `"customer"`.** A host that has not thought about the
+distinction gets the safe answer, and a subject assembled by hand in a test
+cannot accidentally be staff.
+
 ## What it will not hold
 
 **No role catalogue.** Role names are product data and stay in the application

@@ -29,6 +29,56 @@
 export type Capability = string;
 
 /**
+ * The reserved prefix that marks a capability as **operator-only**.
+ *
+ * Everything else about capability naming is a convention this package does
+ * not enforce. This one prefix is a rule, and the asymmetry is deliberate —
+ * see {@link isInternalCapability}.
+ */
+export const INTERNAL_CAPABILITY_PREFIX = "internal:";
+
+/**
+ * Is this capability reserved for internal operators?
+ *
+ * ## Why a reserved prefix rather than a configured list
+ *
+ * The distinction being drawn here is **audience**, not level: an internal
+ * operator versus a customer who happens to administer their own tenant. Every
+ * product in this fleet has both, and both are called "admin" — hopperguard's
+ * `System Admin` (99) is staff while `Brand Admin` (89) is a customer;
+ * rozcards' `ADMIN` (1000) is staff. That is precisely why the mistake is easy.
+ *
+ * The failure to defend against is a **role map that grants an operator
+ * capability to a customer role**. So the evaluator has to learn "this is
+ * operator-only" from somewhere the mistaken role map cannot reach:
+ *
+ * - a per-call option is forgettable, and forgetting it **grants** — it fails
+ *   open, in the one place a package like this must not;
+ * - a registry configured at boot is better, but still a thing that can be
+ *   left unconfigured, and an unconfigured registry also fails open;
+ * - a reserved prefix cannot be forgotten, because it travels in the
+ *   capability name itself.
+ *
+ * A namespace is a smaller commitment than it looks: this package still does
+ * not care whether you write `resource:verb`. It reserves one prefix, and only
+ * ever to DENY.
+ */
+export function isInternalCapability(capability: Capability): boolean {
+  return capability.startsWith(INTERNAL_CAPABILITY_PREFIX);
+}
+
+/**
+ * Which side of the product the principal is on.
+ *
+ * NOT a rank. An internal operator is not "a customer plus one" — the two are
+ * different audiences, which is exactly what an ordered ladder cannot say and
+ * why adding a number here would reintroduce what this package exists to
+ * avoid. A customer admin can hold capabilities no operator has, and that is
+ * not a contradiction.
+ */
+export type Principal = "internal" | "customer";
+
+/**
  * Where a capability applies.
  *
  * **Opaque.** This package compares scopes and does nothing else with them. It
@@ -67,6 +117,20 @@ export interface Subject {
   /** Opaque to this package. Diagnostics only; never part of a decision. */
   id?: string;
   grants: readonly Grant[];
+  /**
+   * Whether this is an internal operator or a customer.
+   *
+   * **Absent means `"customer"`**, and that default is the whole point: a host
+   * that has not thought about the distinction gets the safe answer, and a
+   * subject assembled by hand in a test or a script cannot accidentally be
+   * treated as staff. Being internal has to be asserted, never inferred.
+   *
+   * Independent of grants on purpose. Two facts must hold for an
+   * `internal:`-prefixed capability — the subject is an operator AND the
+   * capability was granted — so neither a mistaken role map nor a mislabelled
+   * principal is sufficient on its own.
+   */
+  principal?: Principal;
 }
 
 /**

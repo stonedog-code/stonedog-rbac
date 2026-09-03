@@ -2,6 +2,7 @@
  * The evaluator. One question, one answer.
  */
 
+import { isInternalCapability } from "./types";
 import type {
   CanOptions,
   Capability,
@@ -36,6 +37,24 @@ const DEFAULT_MAX_SCOPE_DEPTH = 32;
  * Grant-only. There is no deny, deliberately: negation makes the answer depend
  * on the order grants were applied and makes "why was this denied"
  * unanswerable. See the PRD.
+ *
+ * ## The one exception, and why it is not negation
+ *
+ * Rule 0 below refuses an `internal:`-prefixed capability to a subject that is
+ * not an internal operator, whatever its grants say. That looks like the deny
+ * this package rejects, and it is not:
+ *
+ * - it is a property of the **capability**, not of a grant, so no ordering of
+ *   grants can change the answer;
+ * - "why was this denied" stays answerable in one sentence — *this capability
+ *   is operator-only and the subject is a customer*;
+ * - it can only ever deny. A grant-only model stays grant-only when the sole
+ *   addition removes permissions.
+ *
+ * What it defends against is a role map granting an operator capability to a
+ * customer-facing role. That is a configuration mistake nobody notices, on the
+ * one surface where noticing matters — and no arrangement of grants can be
+ * made to expose it.
  */
 export function can(
   subject: Subject,
@@ -43,6 +62,12 @@ export function can(
   scope?: ScopeArgument,
   options: CanOptions = {},
 ): boolean {
+  // Rule 0. Checked before anything else, including the empty-grants
+  // shortcut, so the answer cannot depend on what a subject happens to hold.
+  // Absent `principal` means customer — being internal is asserted, never
+  // inferred.
+  if (isInternalCapability(capability) && subject.principal !== "internal") return false;
+
   // A subject with no grants is the common case for an anonymous visitor, and
   // must be cheap rather than an error.
   if (subject.grants.length === 0) return false;
