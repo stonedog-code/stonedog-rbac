@@ -160,11 +160,16 @@ describe("check-secrets (R-S2)", () => {
     expect(r.out).toContain("AKIA");
   });
 
+  // Every plant is ASSEMBLED here rather than written as a literal: this file
+  // is itself a tracked file the scanner examines, and a literal plant would
+  // make the "every tracked file passes" case above red for the right reason
+  // in the wrong place (it did, on this suite's first hosted run).
+  const dashes = "-".repeat(5);
   it.each([
-    ["a private key block", "-----BEGIN RSA PRIVATE KEY-----\nabc\n", /private key block/],
-    ["an npm token", `token=npm_${"a1B2".repeat(10)}\n`, /npm token/],
-    ["a connection string carrying a password", "DATABASE=postgresql://app:hunter22@db.internal:5432/x\n", /connection string with a password/],
-    ["an assigned secret literal", 'const apiKey = "sk-this-is-a-long-literal-value-1234";\n', /assigned secret literal/],
+    ["a private key block", `${dashes}BEGIN RSA PRIVATE KEY${dashes}\nabc\n`, /private key block/],
+    ["an npm token", `token=${["npm", "_"].join("")}${"a1B2".repeat(10)}\n`, /npm token/],
+    ["a connection string carrying a password", `DATABASE=${["postgresql", "://"].join("")}app:hunter22@db.internal:5432/x\n`, /connection string with a password/],
+    ["an assigned secret literal", `const ${["api", "Key"].join("")} = "sk-this-is-a-long-literal-value-1234";\n`, /assigned secret literal/],
   ])("PLANTED: %s is refused", (_what, body, expected) => {
     const file = join(work, "planted.txt");
     writeFileSync(file, body);
