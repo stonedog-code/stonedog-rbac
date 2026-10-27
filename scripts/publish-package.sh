@@ -6,6 +6,11 @@
 #
 #   npm run publish:stonedog-rbac
 #
+# THIS IS THE INTERACTIVE PATH AND IT PRODUCES NO PROVENANCE. The preferred
+# path is the tag-triggered .github/workflows/publish.yml, which publishes
+# under GitHub's OIDC identity with `npm publish --provenance` (PRD-0067
+# R-S1). Use this one when a hosted runner is not available.
+#
 # Run it from a terminal, interactively. npm prompts for the 2FA one-time
 # password itself (account `stonedogcode`) and the browser login flow needs a
 # human — neither works unattended, which is why this is a script you run
@@ -143,49 +148,9 @@ echo "  node_modules now matches package-lock.json"
 # 4. The manifest invariants, before anything slow runs.
 # ---------------------------------------------------------------------------
 say "Checking the manifest invariants"
-node -e '
-  const pkg = require("./package.json");
-
-  const deps = Object.keys(pkg.dependencies || {});
-  if (deps.length > 0) {
-    console.error(`REFUSING: this package claims ZERO runtime dependencies and now has ${deps.length}: ${deps.join(", ")}.`);
-    console.error("  It is set membership and a bounded graph walk. Anything it imports is inherited by");
-    console.error("  every consumer on an authorisation path. If this is deliberate, change the README");
-    console.error("  claim in the same commit that adds it.");
-    process.exit(1);
-  }
-
-  if (pkg.license !== "Apache-2.0") {
-    console.error(`REFUSING: license is "${pkg.license}", expected Apache-2.0.`);
-    process.exit(1);
-  }
-  // Asserted POSITIVELY — the name must BE `@stonedogcode/rbac`, not merely
-  // "not something else". The previous version of this check forbade a scope,
-  // encoding the original decision to stay unscoped; when that decision was
-  // reversed (NEH-482) the check was left behind and refused the very publish
-  // it was updated for. A guard that only forbids the old mistake cannot catch
-  // the new one, and this one is worth catching in both directions: an
-  // accidental un-scoping would claim a second name for the same package.
-  if (pkg.name !== "@stonedogcode/rbac") {
-    console.error(`REFUSING: name is "${pkg.name}", expected "@stonedogcode/rbac".`);
-    console.error("  All five shared packages scope under @stonedogcode (NEH-482). The unscoped");
-    console.error("  stonedog-rbac@0.1.0 stays on the registry, deprecated, pointing here — changing");
-    console.error("  a name after a publish means DEPRECATING the old one, never reclaiming it.");
-    process.exit(1);
-  }
-
-  // A scoped package defaults to access: restricted. Publishing one privately
-  // succeeds, prints nothing unusual, and then 404s for every consumer — which
-  // reads as a package that was never published. `npm publish --access public`
-  // below is the other half of this; both, because the cost of being wrong is
-  // a version number that can never be reused.
-  if (pkg.publishConfig?.access !== "public") {
-    console.error(`REFUSING: publishConfig.access is "${pkg.publishConfig?.access}", expected "public".`);
-    console.error("  A SCOPED package defaults to restricted, and a private publish looks like a");
-    console.error("  success until a consumer gets a 404.");
-    process.exit(1);
-  }
-'
+# The same guard `npm run gate` runs (scripts/check-manifest.mjs, PRD-0067 R-S0),
+# so a branch cannot pass review carrying a dependency this script would refuse.
+node scripts/check-manifest.mjs
 echo "  zero dependencies; Apache-2.0; scoped name and public access confirmed"
 
 # ---------------------------------------------------------------------------
