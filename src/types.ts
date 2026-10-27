@@ -44,9 +44,10 @@ export const INTERNAL_CAPABILITY_PREFIX = "internal:";
  *
  * The distinction being drawn here is **audience**, not level: an internal
  * operator versus a customer who happens to administer their own tenant. Every
- * product in this fleet has both, and both are called "admin" — hopperguard's
- * `System Admin` (99) is staff while `Brand Admin` (89) is a customer;
- * rozcards' `ADMIN` (1000) is staff. That is precisely why the mistake is easy.
+ * product in this fleet has both, and both are called "admin" — the staff
+ * role at the top of a product's ladder, and a customer-held admin role a few
+ * rungs below it. That is precisely why the mistake is easy. (Which roles
+ * those are is each product's own policy and is not written here.)
  *
  * The failure to defend against is a **role map that grants an operator
  * capability to a customer role**. So the evaluator has to learn "this is

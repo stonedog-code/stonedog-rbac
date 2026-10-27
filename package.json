@@ -1,6 +1,6 @@
 {
   "name": "@stonedogcode/rbac",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A shared authorisation model: capabilities, checked against a scope. No role catalogue, no ordering, no framework.",
   "license": "Apache-2.0",
   "author": "StoneDogCode L.L.C.",
@@ -27,14 +27,17 @@
     "lint": "eslint .",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
-    "gate": "npm run type-check && npm run lint && npm run test",
+    "check:manifest": "node scripts/check-manifest.mjs",
+    "check:tarball": "node scripts/check-tarball-leaks.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "gate": "npm run type-check && npm run lint && npm run test && npm run check:manifest && npm run check:secrets && npm run check:tarball",
     "audit": "npm audit --audit-level=moderate",
     "version:bump:patch": "npm version patch --no-git-tag-version",
     "version:bump:minor": "npm version minor --no-git-tag-version",
     "verify:package": "bash scripts/verify-package.sh",
     "publish:stonedog-rbac": "bash scripts/publish-package.sh"
   },
-  "//publish:stonedog-rbac": "Run from a terminal, interactively \u2014 npm prompts for the 2FA one-time password and the login flow needs a browser. It refuses a checkout that is detached, dirty, or behind origin/main; refuses a version already published; refuses a tarball missing the entry point, the NOTICE, or containing tests; refuses any runtime dependency at all; and refuses a public export having silently disappeared. Then it proves the result by installing from the registry into a temp directory and asserting node_modules holds exactly one package. NOTE the name is SCOPED, so publishConfig.access must stay \"public\" \u2014 a scoped package defaults to RESTRICTED and a private publish looks like a success until a consumer gets a 404. The unscoped stonedog-rbac@0.1.0 is deprecated and points here.",
+  "//publish:stonedog-rbac": "The INTERACTIVE path, which cannot produce npm provenance; the provenance path is the tag-triggered .github/workflows/publish.yml (PRD-0067 R-S1). Run from a terminal, interactively — npm prompts for the 2FA one-time password and the login flow needs a browser. It refuses a checkout that is detached, dirty, or behind origin/main; refuses a version already published; refuses a tarball missing the entry point, the NOTICE, or containing tests; refuses any runtime dependency at all; and refuses a public export having silently disappeared. Then it proves the result by installing from the registry into a temp directory and asserting node_modules holds exactly one package. NOTE the name is SCOPED, so publishConfig.access must stay \"public\" — a scoped package defaults to RESTRICTED and a private publish looks like a success until a consumer gets a 404. The unscoped stonedog-rbac@0.1.0 is deprecated and points here.",
   "//dependencies": "There are none, and there should never be any. This is an evaluator: a few dozen lines of set membership and a bounded graph walk. Anything it imported would be inherited by every consumer on an authorisation path.",
   "devDependencies": {
     "@eslint/js": "^10.0.0",

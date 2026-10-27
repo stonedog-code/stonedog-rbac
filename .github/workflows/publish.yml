@@ -1,0 +1,99 @@
+name: publish
+
+# Publish @stonedogcode/rbac to npm WITH PROVENANCE (PRD-0067 R-S1).
+#
+# Why a workflow and not the interactive script: provenance is an attestation
+# that this exact tarball was built by this exact workflow from this exact
+# commit, signed by GitHub's OIDC identity and recorded on the registry. Only a
+# CI identity can produce it; `npm publish` from a laptop cannot, however
+# carefully it is run. One bad publish of this package reaches every product on
+# whose sign-in path it sits, which is why the attestation is worth having.
+#
+# Trigger: a tag `vX.Y.Z` whose version equals package.json's. The tag is the
+# human decision; everything after it is the same gate a PR runs plus the
+# consumer-shaped package check, and then the publish.
+#
+# Authentication: npm TRUSTED PUBLISHING, and only that. The package is
+# configured on npmjs.com with this repository, this workflow file and the
+# `npm` environment as its trusted publisher, and npm (>= 11.5.1) exchanges
+# the job's OIDC token for a short-lived publish credential. No token lives in
+# this repository. That configuration is the package owner's, once.
+#
+# Deliberately NO `registry-url` on setup-node and NO NODE_AUTH_TOKEN: with
+# `registry-url` set, setup-node writes `_authToken=${NODE_AUTH_TOKEN}` into
+# .npmrc, and an unset variable there makes npm refuse to start ("Failed to
+# replace env in config") — so a token fallback would break the OIDC path it
+# was meant to back up (Gemini, phase 2 review, adopted). One path, no secret.
+#
+# The version is checked against the tag BEFORE anything slow runs, and a
+# version already on the registry fails here rather than at the publish step:
+# a version number can never be reused, so the publish must be the last thing
+# that can go wrong, not the first.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 ships an older npm.
+      - name: Use an npm that can exchange the OIDC token
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: The tag must name package.json's version, and that version must be unpublished
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          echo "tag=v$tag package.json=$version"
+          [ "$tag" = "$version" ] || { echo "::error::tag v$tag does not match package.json $version"; exit 1; }
+          if npm view "@stonedogcode/rbac@$version" version >/dev/null 2>&1; then
+            echo "::error::@stonedogcode/rbac@$version is already on the registry; a version is never reused"
+            exit 1
+          fi
+
+      - run: npm ci
+
+      # The whole gate — type-check, lint, tests with coverage thresholds, the
+      # three publish guards — then the package as a consumer receives it.
+      - run: npm run gate
+      - run: npm run verify:package
+
+      - name: Publish with provenance (trusted publishing — the OIDC token is the credential)
+        run: npm publish --provenance --access public
+
+      # "The registry lists it" and "a consumer can install it" are different
+      # claims. Prove the second, and that the attestation is really there.
+      - name: Prove it installs, and that provenance was recorded
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          for attempt in $(seq 1 20); do
+            npm view "@stonedogcode/rbac@$version" version >/dev/null 2>&1 && break
+            [ "$attempt" -lt 20 ] || { echo "::error::not on the registry after publishing"; exit 1; }
+            sleep 3
+          done
+          probe="$(mktemp -d)"
+          (cd "$probe" && printf '{"name":"probe","version":"1.0.0"}' > package.json && npm install --silent "@stonedogcode/rbac@$version")
+          dirs=$(find "$probe/node_modules" -maxdepth 1 -mindepth 1 -type d ! -name '.*' | wc -l)
+          [ "$dirs" -eq 1 ] || { echo "::error::installing pulled in $dirs packages; it must have zero runtime dependencies"; exit 1; }
+          attestations="$(npm view "@stonedogcode/rbac@$version" dist.attestations --json 2>/dev/null || echo "")"
+          echo "dist.attestations: ${attestations:-NONE}"
+          [ -n "$attestations" ] && [ "$attestations" != "null" ] || { echo "::error::published without a provenance attestation"; exit 1; }

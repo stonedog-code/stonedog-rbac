@@ -37,7 +37,24 @@ export default [
         it: "readonly",
         expect: "readonly",
         beforeEach: "readonly",
+        afterEach: "readonly",
         jest: "readonly",
+        // The publish-guard suite spawns the scripts and prints each plant.
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
+  {
+    // The publish guards (scripts/check-*.mjs): plain Node, ESM, no framework.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        Buffer: "readonly",
       },
     },
   },

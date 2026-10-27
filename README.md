@@ -37,11 +37,12 @@ role ladder cannot provide:
 
 ## Operator-only capabilities
 
-Every product here has a **top-level admin role that is internal staff** —
-hopperguard's `System Admin`, rozcards' `ADMIN` — and **lesser admin roles that
-customers legitimately hold**: a brand admin, a facility admin, an organisation
-admin. Both are called "admin". That is why the mistake is easy, and why the
-distinction has to be declared rather than guessed from a name or a rank.
+Every product has a **top-level admin role that is internal staff** — call it
+`Operator` — and **lesser admin roles that customers legitimately hold**: a
+tenant admin, a site admin, an organisation admin. Both are called "admin".
+That is why the mistake is easy, and why the distinction has to be declared
+rather than guessed from a name or a rank. (A product's real role names stay
+in the product; the examples here are deliberately not any product's.)
 
 The distinction is **audience, not level**. An internal operator is not "a
 customer plus one" — a customer admin can hold capabilities no operator has.
@@ -49,7 +50,7 @@ Expressing it as a rank is exactly what this package exists to avoid.
 
 ```ts
 const subject = subjectFromRoles(assignments, roleMap, {
-  internalRoles: ["System Admin"],          // declared, never inferred
+  internalRoles: ["Operator"],              // declared, never inferred
 });
 
 can(subject, "internal:secrets:read");      // operator only
@@ -154,6 +155,28 @@ A prerequisite. Anything needing an authorisation answer should be able to accep
 a callback and get on with it — this package supplies a ready-made implementation
 of such a callback as a *convenience*. If it becomes required, the interface has
 been drawn wrong.
+
+## Publishing
+
+Two paths, same gate, same tarball checks:
+
+- **With provenance (preferred):** push a tag `vX.Y.Z` that matches
+  `package.json`, and `.github/workflows/publish.yml` runs the gate, verifies
+  the package as a consumer, and publishes with `npm publish --provenance`
+  under GitHub's OIDC identity. The registry then shows a verified build
+  attestation for the version. The job carries no token: it needs the
+  package's **trusted publisher** set once on npmjs.com (package → Settings →
+  Trusted publishing: GitHub Actions, organisation `stonedog-code`, repository
+  `stonedog-rbac`, workflow `publish.yml`, environment `npm`).
+- **Interactively:** `npm run publish:stonedog-rbac` from a clean, current
+  `main`. It runs every check the workflow runs, then npm asks for the 2FA
+  code. It cannot produce provenance — only a CI identity can — so it is the
+  fallback, not the norm.
+
+`npm run gate` includes three guards that exist for the publish: the manifest
+stays dependency-free, the tarball carries no product-internal names, and no
+credential-shaped value is in the tree. Each prints the size of the set it
+examined.
 
 ## Licence
 
